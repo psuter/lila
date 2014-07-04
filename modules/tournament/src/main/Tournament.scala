@@ -8,8 +8,13 @@ import chess.{ Variant, Mode }
 import lila.game.PovRef
 import lila.user.User
 
+private[tournament] sealed abstract class System(val id: Int)
+private[tournament] case object Rush extends System(id = 1)
+private[tournament] case object Swiss extends System(id = 2)
+
 private[tournament] case class Data(
   name: String,
+  system: System,
   clock: TournamentClock,
   minutes: Int,
   minPlayers: Int,
@@ -121,6 +126,7 @@ sealed trait StartedOrFinished extends Tournament {
     id = id,
     status = status.id,
     name = data.name,
+    system = data.system,
     clock = data.clock,
     minutes = data.minutes,
     minPlayers = data.minPlayers,
@@ -160,6 +166,7 @@ case class Created(
     id = id,
     status = Status.Created.id,
     name = data.name,
+    system = data.system,
     clock = data.clock,
     variant = data.variant.id,
     mode = data.mode.id,
@@ -324,12 +331,14 @@ object Tournament {
     clock: TournamentClock,
     minutes: Int,
     minPlayers: Int,
+    system: System,
     variant: Variant,
     mode: Mode,
     password: Option[String]): Created = Created(
     id = Random nextStringUppercase 8,
     data = Data(
       name = RandomName(),
+      system = system,
       clock = clock,
       createdBy = createdBy.id,
       createdAt = DateTime.now,
@@ -345,6 +354,7 @@ object Tournament {
     id = Random nextStringUppercase 8,
     data = Data(
       name = sched.name,
+      system = Rush,
       clock = Schedule clockFor sched,
       createdBy = "lichess",
       createdAt = DateTime.now,
@@ -360,6 +370,7 @@ object Tournament {
 private[tournament] case class RawTournament(
     id: String,
     name: String,
+    system: System,
     clock: TournamentClock,
     minutes: Int,
     minPlayers: Int,
@@ -405,6 +416,7 @@ private[tournament] case class RawTournament(
 
   private def data = Data(
     name,
+    system,
     clock,
     minutes,
     minPlayers,
