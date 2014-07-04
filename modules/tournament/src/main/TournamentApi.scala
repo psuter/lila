@@ -58,6 +58,7 @@ private[tournament] final class TournamentApi(
         minPlayers = setup.minPlayers,
         mode = Mode orDefault ~setup.mode,
         password = setup.password,
+        system = System orDefault setup.system,
         variant = Variant orDefault setup.variant)
       $insert(created) >>-
         (withdrawIds foreach socketReload) >>-

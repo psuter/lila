@@ -82,6 +82,12 @@ object Config extends BaseConfig
 
 trait BaseConfig {
 
+  // FIXME TODO: How can I get the proper values without creating a circular dependency among modules?
+  // val systems = List(TournamentSystem.Rush.id, TournamentSystem.Swiss.id)
+  // val systemDefault = TournamentSystem.default
+  val systems = List(1, 2)
+  val systemDefault = 1
+
   val variants = List(Variant.Standard.id, Variant.Chess960.id)
   val variantDefault = Variant.Standard
 

@@ -8,9 +8,6 @@ import chess.{ Variant, Mode }
 import lila.game.PovRef
 import lila.user.User
 
-private[tournament] sealed abstract class System(val id: Int)
-private[tournament] case object Rush extends System(id = 1)
-private[tournament] case object Swiss extends System(id = 2)
 
 private[tournament] case class Data(
   name: String,
@@ -43,6 +40,7 @@ sealed trait Tournament {
   def minutes = data.minutes
   lazy val duration = new Duration(minutes * 60 * 1000)
 
+  def system = data.system
   def variant = data.variant
   def mode = data.mode
   def rated = mode.rated
@@ -126,7 +124,7 @@ sealed trait StartedOrFinished extends Tournament {
     id = id,
     status = status.id,
     name = data.name,
-    system = data.system,
+    system = data.system.id,
     clock = data.clock,
     minutes = data.minutes,
     minPlayers = data.minPlayers,
@@ -166,7 +164,7 @@ case class Created(
     id = id,
     status = Status.Created.id,
     name = data.name,
-    system = data.system,
+    system = data.system.id,
     clock = data.clock,
     variant = data.variant.id,
     mode = data.mode.id,
@@ -354,7 +352,7 @@ object Tournament {
     id = Random nextStringUppercase 8,
     data = Data(
       name = sched.name,
-      system = Rush,
+      system = System.Rush,
       clock = Schedule clockFor sched,
       createdBy = "lichess",
       createdAt = DateTime.now,
@@ -370,7 +368,7 @@ object Tournament {
 private[tournament] case class RawTournament(
     id: String,
     name: String,
-    system: System,
+    system: Int = System.default.id,
     clock: TournamentClock,
     minutes: Int,
     minPlayers: Int,
@@ -416,7 +414,7 @@ private[tournament] case class RawTournament(
 
   private def data = Data(
     name,
-    system,
+    System orDefault system,
     clock,
     minutes,
     minPlayers,
@@ -452,6 +450,7 @@ private[tournament] object RawTournament {
     "startedAt" -> none[DateTime],
     "players" -> List[Player](),
     "pairings" -> List[RawPairing](),
+    "system" -> System.Rush.id,
     "variant" -> Variant.Standard.id,
     "mode" -> Mode.Casual.id,
     "schedule" -> none[Schedule])

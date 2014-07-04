@@ -36,6 +36,7 @@ final class DataForm(isDev: Boolean) {
     "clockIncrement" -> numberIn(clockIncrementChoices),
     "minutes" -> numberIn(minuteChoices),
     "minPlayers" -> numberIn(minPlayerChoices),
+    "system" -> Mappings.system,
     "variant" -> Mappings.variant,
     "mode" -> Mappings.mode(true),
     "password" -> optional(nonEmptyText)
@@ -47,6 +48,7 @@ final class DataForm(isDev: Boolean) {
     clockIncrement = clockIncrementDefault,
     minutes = minuteDefault,
     minPlayers = minPlayerDefault,
+    system = System.default.id,
     variant = Variant.Standard.id,
     password = none,
     mode = Mode.Casual.id.some)
@@ -61,6 +63,7 @@ private[tournament] case class TournamentSetup(
     clockIncrement: Int,
     minutes: Int,
     minPlayers: Int,
+    system: Int,
     variant: Int,
     mode: Option[Int],
     password: Option[String]) {
