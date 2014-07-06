@@ -75,7 +75,7 @@ sealed trait Tournament {
 
   def userPairings(user: String) = pairings filter (_ contains user)
 
-  def scoreSheet(player: Player) = Score.sheet(player.id, this)
+  def scoreSheet(player: Player) = system.scoringSystem.scoreSheet(player.id, this)
 }
 
 sealed trait Enterable extends Tournament {
