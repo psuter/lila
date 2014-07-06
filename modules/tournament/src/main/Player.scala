@@ -25,7 +25,7 @@ private[tournament] object Player {
     rating = user.rating)
 
   private[tournament] def refresh(tour: Tournament): Players = tour.players map { p =>
-    p.copy(score = Score.sheet(p.id, tour).total)
+    p.copy(score = tour.system.scoringSystem.scoreSheet(p.id, tour).total)
   } sortBy { p =>
     p.withdraw.fold(Int.MaxValue, 0) - p.score
   }
@@ -38,7 +38,7 @@ private[tournament] object Player {
     "withdraw" -> false,
     "nbWin" -> 0,
     "nbLoss" -> 0,
-    "winStreak" -> 0,
+    "winStreak" -> 0, // TODO FIXME is this still used?
     "score" -> 0)
 
   private[tournament] val tube = JsTube(

@@ -1,31 +1,34 @@
 package lila.tournament
+package rush
 
-case class Score(
-    win: Option[Boolean],
-    flag: Score.Flag) {
+import lila.tournament.{ ScoringSystem => AbstractScoringSystem }
+import lila.tournament.{ Score => AbstractScore }
 
-  val value = this match {
-    case Score(Some(true), Score.Double) => 4
-    case Score(Some(true), _)            => 2
-    case Score(None, Score.Double)       => 2
-    case Score(None, _)                  => 1
-    case _                               => 0
-  }
-}
-
-object Score {
-
-  case class Sheet(scores: List[Score]) {
-    val total = scores.foldLeft(0)(_ + _.value)
-    def onFire = Score firstTwoAreWins scores
-  }
-
+object ScoringSystem extends AbstractScoringSystem {
   sealed trait Flag
   case object StreakStarter extends Flag
   case object Double extends Flag
   case object Normal extends Flag
 
-  def sheet(user: String, tour: Tournament) = Sheet {
+  case class Score(
+      win: Option[Boolean],
+      flag: Flag) extends AbstractScore {
+  
+    val value = this match {
+      case Score(Some(true), Double) => 4
+      case Score(Some(true), _)            => 2
+      case Score(None, Double)       => 2
+      case Score(None, _)                  => 1
+      case _                               => 0
+    }
+  }
+
+  case class Sheet(scores: List[Score]) extends ScoreSheet {
+    val total = scores.foldLeft(0)(_ + _.value)
+    def onFire = firstTwoAreWins(scores)
+  }
+
+  def scoreSheet(user: String, tour: Tournament) = Sheet {
     val filtered = tour userPairings user filter (_.finished) reverse
     val nexts = (filtered drop 1 map Some.apply) :+ None
     filtered.zip(nexts).foldLeft(List[Score]()) {
