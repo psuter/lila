@@ -40,7 +40,8 @@ object ApplicationBuild extends Build {
     gameSearch, timeline, forum, forumSearch, team, teamSearch,
     ai, analyse, mod, monitor, site, round, lobby, setup,
     importer, tournament, pool, relation, report, pref, // simulation,
-    evaluation, chat, puzzle, tv, coordinate, blog, donation)
+    evaluation, chat, puzzle, tv, coordinate, blog, donation,
+    swisssystem)
 
   lazy val moduleRefs = modules map projectToRef
   lazy val moduleCPDeps = moduleRefs map { new sbt.ClasspathDependency(_, None) }
@@ -160,7 +161,7 @@ object ApplicationBuild extends Build {
   )
 
   lazy val tournament = project("tournament", Seq(
-    common, hub, socket, chess, game, round, setup, security, chat, memo)).settings(
+    common, hub, socket, chess, game, round, setup, security, chat, memo, swisssystem)).settings(
     libraryDependencies ++= provided(play.api, RM, PRM)
   )
 
@@ -251,4 +252,6 @@ object ApplicationBuild extends Build {
   )
 
   lazy val chess = project("chess")
+
+  lazy val swisssystem = project("swisssystem")
 }
