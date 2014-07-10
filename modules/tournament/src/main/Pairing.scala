@@ -1,9 +1,9 @@
 package lila.tournament
 
-import scala.util.Random
-
 import chess.Color
 import lila.game.{ PovRef, IdGenerator }
+
+import org.joda.time.DateTime
 
 case class Pairing(
     gameId: String,
@@ -11,9 +11,10 @@ case class Pairing(
     user1: String,
     user2: String,
     winner: Option[String],
-    turns: Option[Int]) {
+    turns: Option[Int],
+    pairedAt: Option[DateTime] = None) {
 
-  def encode: RawPairing = RawPairing(gameId, status.id, users, winner, turns)
+  def encode: RawPairing = RawPairing(gameId, status.id, users, winner, turns, pairedAt)
 
   def users = List(user1, user2)
   def usersPair = user1 -> user2
@@ -63,13 +64,13 @@ private[tournament] object Pairing {
     turns = none)
 }
 
-private[tournament] case class RawPairing(g: String, s: Int, u: List[String], w: Option[String], t: Option[Int]) {
+private[tournament] case class RawPairing(g: String, s: Int, u: List[String], w: Option[String], t: Option[Int], p: Option[DateTime]) {
 
   def decode: Option[Pairing] = for {
     status ← chess.Status(s)
     user1 ← u.lift(0)
     user2 ← u.lift(1)
-  } yield Pairing(g, status, user1, user2, w, t)
+  } yield Pairing(g, status, user1, user2, w, t, p)
 }
 
 private[tournament] object RawPairing {
@@ -80,7 +81,8 @@ private[tournament] object RawPairing {
 
   private def defaults = Json.obj(
     "w" -> none[String],
-    "t" -> none[Int])
+    "t" -> none[Int],
+    "p" -> none[DateTime])
 
   private[tournament] val tube = JsTube(
     (__.json update merge(defaults)) andThen Json.reads[RawPairing],

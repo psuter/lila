@@ -1,0 +1,49 @@
+package lila.tournament
+
+import org.joda.time.DateTime
+
+// Metadata about running tournaments: who got byed, when a round completed, this sort of things.
+sealed abstract class Event(val id: Int) {
+  def timestamp: DateTime
+  def encode: RawEvent
+}
+
+case class RoundEnd(timestamp: DateTime) extends Event(1) {
+  def encode = RawEvent(id, timestamp, None)
+}
+
+case class Bye(user: String, timestamp: DateTime) extends Event(10) {
+  def encode = RawEvent(id, timestamp, Some(user))
+}
+
+// TODO FIXME : should this contain the union of all possible fields of events?  Seems like the easiest way... I also have this feel that
+// all None fields will not be stored anyway.
+private[tournament] case class RawEvent(
+  i: Int,
+  t: DateTime,
+  u: Option[String]) {
+
+  def decode: Option[Event] = roundEnd orElse bye
+
+  def roundEnd: Option[RoundEnd] = (i == 1) option RoundEnd(t)
+
+  def bye: Option[Bye] = for {
+    usr <- u
+    if i == 10
+  } yield Bye(usr, t)
+}
+
+private[tournament] object RawEvent {
+  import lila.db.JsTube
+  import JsTube.Helpers._
+  import play.api.libs.json._
+
+  private def defaults = Json.obj(
+    "u" -> none[String]
+  )
+
+  private[tournament] val tube = JsTube(
+    (__.json update merge(defaults)) andThen Json.reads[RawEvent],
+    Json.writes[RawEvent]
+  ) 
+}

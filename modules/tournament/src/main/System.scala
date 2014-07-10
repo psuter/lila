@@ -31,7 +31,6 @@ trait PairingSystem {
 }
 
 trait Score {
-  val win: Option[Boolean]
   val value: Int
 }
 

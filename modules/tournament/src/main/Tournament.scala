@@ -30,6 +30,7 @@ sealed trait Tournament {
   def players: Players
   def winner: Option[Player]
   def pairings: List[Pairing]
+  def events: List[Event]
   def isOpen: Boolean = false
   def isRunning: Boolean = false
   def isFinished: Boolean = false
@@ -76,6 +77,10 @@ sealed trait Tournament {
   def userPairings(user: String) = pairings filter (_ contains user)
 
   def scoreSheet(player: Player) = system.scoringSystem.scoreSheet(player.id, this)
+
+  // Oldest first!
+  def pairingsAndEvents: List[Either[Pairing,Event]] =
+    (pairings.reverse.map(Left(_)) ::: events.map(Right(_))).sorted(Tournament.PairingEventOrdering)
 }
 
 sealed trait Enterable extends Tournament {
@@ -158,6 +163,8 @@ case class Created(
 
   def pairings = Nil
 
+  def events = Nil
+
   def winner = None
 
   def encode = new RawTournament(
@@ -185,7 +192,7 @@ case class Created(
 
   def startIfReady = enoughPlayersToStart option start
 
-  def start = Started(id, data, DateTime.now, players, Nil)
+  def start = Started(id, data, DateTime.now, players, Nil, Nil)
 
   def asScheduled = schedule map { Scheduled(this, _) }
 
@@ -206,7 +213,8 @@ case class Started(
     data: Data,
     startedAt: DateTime,
     players: Players,
-    pairings: List[Pairing]) extends StartedOrFinished with Enterable {
+    pairings: List[Pairing],
+    events: List[Event]) extends StartedOrFinished with Enterable {
 
   override def isRunning = true
 
@@ -216,6 +224,9 @@ case class Started(
   def updatePairing(gameId: String, f: Pairing => Pairing) = copy(
     pairings = pairings map { p => (p.gameId == gameId).fold(f(p), p) }
   )
+
+  def addEvent(e: Event) =
+    copy(events = e :: events)
 
   def readyToFinish = (remainingSeconds == 0) || (nbActiveUsers < 2)
 
@@ -245,7 +256,8 @@ case class Started(
       data = tour.data,
       startedAt = tour.startedAt,
       players = tour.players,
-      pairings = tour.pairings filterNot (_.playing))
+      pairings = tour.pairings filterNot (_.playing),
+      events = tour.events)
   }
 
   def withdraw(userId: String): Valid[Started] = contains(userId).fold(
@@ -282,7 +294,8 @@ case class Finished(
     data: Data,
     startedAt: DateTime,
     players: Players,
-    pairings: List[Pairing]) extends StartedOrFinished {
+    pairings: List[Pairing],
+    events: List[Event]) extends StartedOrFinished {
 
   override def isFinished = true
 
@@ -363,6 +376,23 @@ object Tournament {
       schedule = Some(sched),
       minPlayers = 0),
     players = List())
+
+  // To sort combined sequences of pairings and events.
+  // This sorts all pairings/events in chronological order. Pairings without a timestamp
+  // are assumed to have happened at the origin of time (i.e. before anything else).
+  object PairingEventOrdering extends Ordering[Either[Pairing,Event]] {
+    def compare(x: Either[Pairing,Event], y: Either[Pairing,Event]): Int = {
+      val ot1: Option[DateTime] = x.fold(_.pairedAt, e => Some(e.timestamp))
+      val ot2: Option[DateTime] = x.fold(_.pairedAt, e => Some(e.timestamp))
+
+      (ot1,ot2) match {
+        case (None,None)         => 0
+        case (None,Some(_))      => -1
+        case (Some(_),None)      => 1
+        case (Some(t1),Some(t2)) => if(t1 equals t2) 0 else if(t1 isBefore t2) -1 else 1
+      }
+    }
+  }
 }
 
 private[tournament] case class RawTournament(
@@ -379,6 +409,7 @@ private[tournament] case class RawTournament(
     startedAt: Option[DateTime] = None,
     players: List[Player] = Nil,
     pairings: List[RawPairing] = Nil,
+    events: List[RawEvent] = Nil,
     variant: Int = Variant.Standard.id,
     mode: Int = Mode.Casual.id,
     schedule: Option[Schedule] = None) {
@@ -398,7 +429,8 @@ private[tournament] case class RawTournament(
     data = data,
     startedAt = stAt,
     players = players,
-    pairings = decodePairings)
+    pairings = decodePairings,
+    events = decodeEvents)
 
   def finished: Option[Finished] = for {
     stAt ← startedAt
@@ -408,7 +440,8 @@ private[tournament] case class RawTournament(
     data = data,
     startedAt = stAt,
     players = players,
-    pairings = decodePairings)
+    pairings = decodePairings,
+    events = decodeEvents)
 
   def enterable: Option[Enterable] = created orElse started
 
@@ -427,6 +460,8 @@ private[tournament] case class RawTournament(
 
   private def decodePairings = pairings map (_.decode) flatten
 
+  private def decodeEvents = events map (_.decode) flatten
+
   def any: Option[Tournament] = Status(status) flatMap {
     case Status.Created  => created
     case Status.Started  => started
@@ -441,6 +476,7 @@ private[tournament] object RawTournament {
   import play.api.libs.json._
 
   private implicit def pairingTube = RawPairing.tube
+  private implicit def eventTube = RawEvent.tube
   private implicit def clockTube = TournamentClock.tube
   private implicit def scheduleTube = Schedule.tube
   private implicit def PlayerTube = Player.tube
