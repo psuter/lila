@@ -2,13 +2,17 @@ package lila.tournament
 package swiss
 
 import org.joda.time.DateTime
+import org.joda.time.Duration
 
 import lila.tournament.{ Score => AbstractScore }
+import lila.game.{ Game, GameRepo }
 
 import scala.concurrent.Future
 import scala.util.Try
 
 object SwissSystem extends PairingSystem with ScoringSystem {
+  private val MinTimeBetweenRounds = Duration.standardSeconds(10L)
+
   sealed abstract class Score(val value: Int, val repr: String) extends AbstractScore
   case object Win     extends Score(2, "1")
   case object Loss    extends Score(0, "0")
@@ -84,36 +88,56 @@ object SwissSystem extends PairingSystem with ScoringSystem {
   }
 
   override def createPairings(tour: Tournament, users: List[String]): Future[(Pairings,Events)] = {
-    val failed = Future.successful((Nil,Nil))
+    val failed       = (Nil,Nil)
+    val failedFuture = Future.successful(failed) // Oh the irony.
     
     // Notice how this doesn't use users: we get to pair players who haven't returned to the lobby yet.
     val toPair = tour.activePlayers.map(_.id).toSet
 
     if(toPair.size < 2) {
-      failed
+      failedFuture
     } else if(tour.pairings.exists(_.playing)) {
       // Can't pair if games are still going on.
-      failed
+      failedFuture
     } else {
       val now = DateTime.now
 
-      val (tt, _) = fromHistory(tour)
-
-      tt flatMap { t =>
-        t.pairings(toPair) map { p =>
-          val ps = p.pairs.map {
-            case (p1,p2) => Pairing(p1,p2,now)
-          }
-          val roundEnd = RoundEnd(now.plusMillis(1))
-          val events = p.unpaired map { u =>
-            Bye(u, now) :: roundEnd :: Nil
-          } getOrElse {
-            roundEnd :: Nil
-          }
-          Future.successful((ps,events))
+      val pairingTimes: List[DateTime] = tour.pairings.flatMap(_.pairedAt)
+      val lastRoundGames: Future[List[Game]] = if(pairingTimes.isEmpty) {
+        Future.successful(Nil)
+      } else {
+        val mostRecentPairingTime: DateTime = pairingTimes.maxBy(_.getMillis)
+        val lastRoundGameIds: List[String] = tour.pairings.collect {
+          case p if p.pairedAt == Some(mostRecentPairingTime) => p.gameId
         }
-      } getOrElse {
-        failed
+        GameRepo.games(lastRoundGameIds)
+      }
+
+      lastRoundGames map { games => 
+        val updateTimes: List[DateTime] = games.flatMap(_.updatedAt)
+        if(updateTimes.exists(t => t.plus(MinTimeBetweenRounds).isAfter(now))) {
+          // Too soon!
+          failed
+        } else {
+          val (tt, _) = fromHistory(tour)
+
+          tt flatMap { t =>
+            t.pairings(toPair) map { p =>
+              val ps = p.pairs.map {
+                case (p1,p2) => Pairing(p1,p2,now)
+              }
+              val roundEnd = RoundEnd(now.plusMillis(1))
+              val events = p.unpaired map { u =>
+                Bye(u, now) :: roundEnd :: Nil
+              } getOrElse {
+                roundEnd :: Nil
+              }
+              (ps,events)
+            }
+          } getOrElse {
+            failed
+          }
+        }
       }
     }
   }
