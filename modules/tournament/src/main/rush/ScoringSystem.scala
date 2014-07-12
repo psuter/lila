@@ -16,10 +16,10 @@ object ScoringSystem extends AbstractScoringSystem {
   
     val value = this match {
       case Score(Some(true), Double) => 4
-      case Score(Some(true), _)            => 2
+      case Score(Some(true), _)      => 2
       case Score(None, Double)       => 2
-      case Score(None, _)                  => 1
-      case _                               => 0
+      case Score(None, _)            => 1
+      case _                         => 0
     }
   }
 
