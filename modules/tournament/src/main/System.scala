@@ -1,5 +1,7 @@
 package lila.tournament
 
+import scala.concurrent.Future
+
 sealed abstract class System(val id: Int) {
   val pairingSystem: PairingSystem
   val scoringSystem: ScoringSystem
@@ -27,7 +29,7 @@ object System {
 }
 
 trait PairingSystem {
-  def createPairings(tournament: Tournament, users: List[String]): (Pairings,Events)
+  def createPairings(tournament: Tournament, users: List[String]): Future[(Pairings,Events)]
 }
 
 trait Score {
@@ -43,15 +45,16 @@ trait ScoringSystem {
   type Sheet <: ScoreSheet
   type RankedPlayers = List[(Int, Player)]
 
+  // This should rank players by score, and rank all withdrawn players after active ones.
   def rank(tournament: Tournament, players: Players): RankedPlayers
 
-  // You must override either this one of the other !
+  // You must override either this one or scoreSheet!
   def scoreSheets(tournament: Tournament): Map[String,Sheet] = {
     tournament.players.map { p =>
       (p.id -> scoreSheet(tournament, p.id))
     } toMap
   } 
 
-  // You must override either this one of the other !
+  // You must override either this one or scoreSheets!
   def scoreSheet(tournament: Tournament, player: String): Sheet = scoreSheets(tournament)(player)
 }

@@ -5,6 +5,7 @@ import org.joda.time.DateTime
 
 import lila.tournament.{ Score => AbstractScore }
 
+import scala.concurrent.Future
 import scala.util.Try
 
 object SwissSystem extends PairingSystem with ScoringSystem {
@@ -62,23 +63,28 @@ object SwissSystem extends PairingSystem with ScoringSystem {
 
   override def rank(tour: Tournament, players: Players): RankedPlayers = {
     val ss = scoreSheets(tour)
-    val withSheets = players map { p =>
-      (p, ss.getOrElse(p.id, BlankSheet))
-    }
-    val sorted = withSheets.sortBy(_._2)(SheetOrdering).reverse
 
-    // yeurk.
-    val ranked = sorted.foldLeft[(RankedPlayers,Sheet)]((Nil,BlankSheet)) {
-      case ((Nil,_),(p,s))                               => ((1, p) :: Nil, s)
-      case ((l@(r0::_),s0), (p,s)) if s0.compare(s) == 0 => ((r0._1, p) :: l, s0)
-      case ((l,_),(p, s))                                => ((l.size + 1, p) :: l, s)
+    def r(ps: Players) = {
+      val withSheets = ps map { p =>
+        (p, ss.getOrElse(p.id, BlankSheet))
+      }
+      val sorted = withSheets.sortBy(_._2)(SheetOrdering).reverse
+
+      // yeurk.
+      val ranked = sorted.foldLeft[(RankedPlayers,Sheet)]((Nil,BlankSheet)) {
+        case ((Nil,_),(p,s))                               => ((1, p) :: Nil, s)
+        case ((l@(r0::_),s0), (p,s)) if s0.compare(s) == 0 => ((r0._1, p) :: l, s0)
+        case ((l,_),(p, s))                                => ((l.size + 1, p) :: l, s)
+      }
+      ranked._1.reverse
     }
 
-    ranked._1.reverse
+    val (active,inactive) = players.partition(_.active)
+    r(active) ::: r(inactive)
   }
 
-  override def createPairings(tour: Tournament, users: List[String]): (Pairings,Events) = {
-    val failed = (Nil,Nil)
+  override def createPairings(tour: Tournament, users: List[String]): Future[(Pairings,Events)] = {
+    val failed = Future.successful((Nil,Nil))
     
     // Notice how this doesn't use users: we get to pair players who haven't returned to the lobby yet.
     val toPair = tour.activePlayers.map(_.id).toSet
@@ -104,7 +110,7 @@ object SwissSystem extends PairingSystem with ScoringSystem {
           } getOrElse {
             roundEnd :: Nil
           }
-          (ps,events)
+          Future.successful((ps,events))
         }
       } getOrElse {
         failed

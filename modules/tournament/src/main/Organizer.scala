@@ -61,10 +61,11 @@ private[tournament] final class Organizer(
       withUserIds(tour.id) { ids =>
         (tour.activeUserIds intersect ids) |> { users =>
 
-          val (pairings, events) = tour.system.pairingSystem.createPairings(tour, users)
-
-          pairings.toNel foreach { pairings =>
-            api.makePairings(tour, pairings, events)
+          tour.system.pairingSystem.createPairings(tour, users) onSuccess {
+            case (pairings, events) =>
+              pairings.toNel foreach { pairings =>
+                api.makePairings(tour, pairings, events)
+              }
           }
         }
       }

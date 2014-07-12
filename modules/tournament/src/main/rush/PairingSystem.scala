@@ -4,16 +4,17 @@ package rush
 import lila.tournament.{ PairingSystem => AbstractPairingSystem }
 
 import scala.util.Random
+import scala.concurrent.Future
 
 object PairingSystem extends AbstractPairingSystem {
   type P = (String, String)
 
-  def createPairings(tour: Tournament, users: List[String]): (Pairings,Events) = {
+  def createPairings(tour: Tournament, users: List[String]): Future[(Pairings,Events)] = {
     val pairings = tour.pairings
     val nbActiveUsers = tour.nbActiveUsers
 
     if (users.size < 2)
-      (Nil,Nil)
+      Future.successful((Nil,Nil))
     else {
       val idles: List[String] = Random shuffle {
         users.toSet diff { (pairings filter (_.playing) flatMap (_.users)).toSet } toList
@@ -27,7 +28,7 @@ object PairingSystem extends AbstractPairingSystem {
         )
       )
 
-      (ps,Nil)
+      Future.successful((ps,Nil))
     }
   }
 
