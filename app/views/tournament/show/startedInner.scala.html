@@ -13,6 +13,13 @@
 </a>
 }
 
-@tournament.standing(tour)
+@tour.system match {
+  case lila.tournament.System.Rush => {
+    @tournament.rushStanding(tour)
+  }
+  case lila.tournament.System.Swiss => {
+    @tournament.swissStanding(tour)
+  }
+}
 
 @tournament.games(games)

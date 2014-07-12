@@ -28,7 +28,7 @@ object ScoringSystem extends AbstractScoringSystem {
     def onFire = firstTwoAreWins(scores)
   }
 
-  def scoreSheet(user: String, tour: Tournament) = Sheet {
+  override def scoreSheet(tour: Tournament, user: String) = Sheet {
     val filtered = tour userPairings user filter (_.finished) reverse
     val nexts = (filtered drop 1 map Some.apply) :+ None
     filtered.zip(nexts).foldLeft(List[Score]()) {

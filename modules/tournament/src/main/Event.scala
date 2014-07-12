@@ -16,8 +16,9 @@ case class Bye(user: String, timestamp: DateTime) extends Event(10) {
   def encode = RawEvent(id, timestamp, Some(user))
 }
 
-// TODO FIXME : should this contain the union of all possible fields of events?  Seems like the easiest way... I also have this feel that
-// all None fields will not be stored anyway.
+// TODO FIXME : should this contain the union of all possible fields of events? 
+// Seems like the easiest way... I also have this feeling that all None fields will
+// not be stored anyway.
 private[tournament] case class RawEvent(
   i: Int,
   t: DateTime,

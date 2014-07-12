@@ -12,7 +12,7 @@ case class Pairing(
     user2: String,
     winner: Option[String],
     turns: Option[Int],
-    pairedAt: Option[DateTime] = None) {
+    pairedAt: Option[DateTime]) {
 
   def encode: RawPairing = RawPairing(gameId, status.id, users, winner, turns, pairedAt)
 
@@ -54,14 +54,18 @@ case class Pairing(
 private[tournament] object Pairing {
   type P = (String, String)
 
-  def apply(users: P): Pairing = apply(users._1, users._2)
-  def apply(user1: String, user2: String): Pairing = new Pairing(
+  def apply(us: P): Pairing = apply(us._1, us._2)
+  def apply(u1: String, u2: String): Pairing = apply(u1, u2, None)
+  def apply(u1: String, u2: String, pa: DateTime): Pairing = apply(u1, u2, Some(pa))
+
+  def apply(u1: String, u2: String, pa: Option[DateTime]): Pairing = new Pairing(
     gameId = IdGenerator.game,
     status = chess.Status.Created,
-    user1 = user1,
-    user2 = user2,
+    user1 = u1,
+    user2 = u2,
     winner = none,
-    turns = none)
+    turns = none,
+    pairedAt = pa)
 }
 
 private[tournament] case class RawPairing(g: String, s: Int, u: List[String], w: Option[String], t: Option[Int], p: Option[DateTime]) {

@@ -76,7 +76,7 @@ sealed trait Tournament {
 
   def userPairings(user: String) = pairings filter (_ contains user)
 
-  def scoreSheet(player: Player) = system.scoringSystem.scoreSheet(player.id, this)
+  def scoreSheet(player: Player) = system.scoringSystem.scoreSheet(this, player.id)
 
   // Oldest first!
   def pairingsAndEvents: List[Either[Pairing,Event]] =
@@ -141,7 +141,8 @@ sealed trait StartedOrFinished extends Tournament {
     startedAt = startedAt.some,
     schedule = data.schedule,
     players = players,
-    pairings = pairings map (_.encode))
+    pairings = pairings map (_.encode),
+    events = events map (_.encode))
 
   def finishedAt = startedAt + duration
 }
@@ -225,8 +226,8 @@ case class Started(
     pairings = pairings map { p => (p.gameId == gameId).fold(f(p), p) }
   )
 
-  def addEvent(e: Event) =
-    copy(events = e :: events)
+  def addEvents(es: Events) =
+    copy(events = es ::: events)
 
   def readyToFinish = (remainingSeconds == 0) || (nbActiveUsers < 2)
 
@@ -383,7 +384,7 @@ object Tournament {
   object PairingEventOrdering extends Ordering[Either[Pairing,Event]] {
     def compare(x: Either[Pairing,Event], y: Either[Pairing,Event]): Int = {
       val ot1: Option[DateTime] = x.fold(_.pairedAt, e => Some(e.timestamp))
-      val ot2: Option[DateTime] = x.fold(_.pairedAt, e => Some(e.timestamp))
+      val ot2: Option[DateTime] = y.fold(_.pairedAt, e => Some(e.timestamp))
 
       (ot1,ot2) match {
         case (None,None)         => 0
@@ -486,6 +487,7 @@ private[tournament] object RawTournament {
     "startedAt" -> none[DateTime],
     "players" -> List[Player](),
     "pairings" -> List[RawPairing](),
+    "events" -> List[RawEvent](),
     "system" -> System.Rush.id,
     "variant" -> Variant.Standard.id,
     "mode" -> Mode.Casual.id,

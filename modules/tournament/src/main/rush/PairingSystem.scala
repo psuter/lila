@@ -8,23 +8,28 @@ import scala.util.Random
 object PairingSystem extends AbstractPairingSystem {
   type P = (String, String)
 
-  def createNewPairings(users: List[String], pairings: Pairings, nbActiveUsers: Int): Pairings =
+  def createPairings(tour: Tournament, users: List[String]): (Pairings,Events) = {
+    val pairings = tour.pairings
+    val nbActiveUsers = tour.nbActiveUsers
 
     if (users.size < 2)
-      Nil
+      (Nil,Nil)
     else {
       val idles: List[String] = Random shuffle {
         users.toSet diff { (pairings filter (_.playing) flatMap (_.users)).toSet } toList
       }
 
-      pairings.isEmpty.fold(
+      val ps = pairings.isEmpty.fold(
         naivePairings(idles),
         (idles.size > 12).fold(
           naivePairings(idles),
           smartPairings(idles, pairings, nbActiveUsers)
         )
       )
+
+      (ps,Nil)
     }
+  }
 
   private def naivePairings(users: List[String]) =
     Random shuffle users grouped 2 collect {

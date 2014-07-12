@@ -12,8 +12,8 @@ object System {
   }
 
   case object Swiss extends System(id = 2) {
-    val pairingSystem = rush.PairingSystem
-    val scoringSystem = rush.ScoringSystem
+    val pairingSystem = swiss.SwissSystem
+    val scoringSystem = swiss.SwissSystem
   }
 
   val default = Rush
@@ -27,7 +27,7 @@ object System {
 }
 
 trait PairingSystem {
-  def createNewPairings(users: List[String], pairings: Pairings, nbActiveUsers: Int): Pairings
+  def createPairings(tournament: Tournament, users: List[String]): (Pairings,Events)
 }
 
 trait Score {
@@ -42,5 +42,13 @@ trait ScoreSheet {
 trait ScoringSystem {
   type Sheet <: ScoreSheet
 
-  def scoreSheet(player: String, tournament: Tournament): Sheet
+  // You must override either this one of the other !
+  def scoreSheets(tournament: Tournament): Map[String,Sheet] = {
+    tournament.players.map { p =>
+      (p.id -> scoreSheet(tournament, p.id))
+    } toMap
+  } 
+
+  // You must override either this one of the other !
+  def scoreSheet(tournament: Tournament, player: String): Sheet = scoreSheets(tournament)(player)
 }

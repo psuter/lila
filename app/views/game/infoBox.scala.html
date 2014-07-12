@@ -73,7 +73,7 @@
         t scoreSheet player,
         // TODO FIXME that's a little ugly I must say.
         t.system.scoringSystem match {
-            case ss @ rush.ScoringSystem => ss.scoreSheet(player.id, t).onFire
+            case ss @ rush.ScoringSystem => ss.scoreSheet(t, player.id).onFire
             case _                       => false
         })) {
         case (scoreSheet, onFire) => {

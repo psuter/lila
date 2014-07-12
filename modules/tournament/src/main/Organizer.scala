@@ -60,8 +60,11 @@ private[tournament] final class Organizer(
     if (!tour.isAlmostFinished) {
       withUserIds(tour.id) { ids =>
         (tour.activeUserIds intersect ids) |> { users =>
-          tour.system.pairingSystem.createNewPairings(users, tour.pairings, tour.nbActiveUsers).toNel foreach { pairings =>
-            api.makePairings(tour, pairings)
+
+          val (pairings, events) = tour.system.pairingSystem.createPairings(tour, users)
+
+          pairings.toNel foreach { pairings =>
+            api.makePairings(tour, pairings, events)
           }
         }
       }
