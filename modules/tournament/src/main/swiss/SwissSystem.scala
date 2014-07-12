@@ -8,21 +8,6 @@ import lila.tournament.{ Score => AbstractScore }
 import scala.util.Try
 
 object SwissSystem extends PairingSystem with ScoringSystem {
-  private type STour = swisssystem.Tournament[String]
-
-  // FIXME I feel like this must exist in the stdlib somewhere...
-  // Maybe in scalaz? It's like String.split, but for lists...
-  private def split[T](l: List[T], p: T=>Boolean): List[List[T]] = {
-    def s(l: List[T], p: T=>Boolean): List[List[T]] = l match {
-      case Nil => List(Nil)
-      case x :: xs if p(x) => Nil :: s(xs, p)
-      case x :: xs => 
-        val r :: rs = s(xs, p)
-        (x :: r) :: rs
-    }
-    s(l,p).filterNot(_.isEmpty)
-  }
-
   sealed abstract class Score(val value: Int, val repr: String) extends AbstractScore
   case object Win     extends Score(2, "1")
   case object Loss    extends Score(0, "0")
@@ -50,11 +35,26 @@ object SwissSystem extends PairingSystem with ScoringSystem {
     }
   }
   private val BlankSheet = Sheet(Nil, 0, 0)
+
+  private type STour = swisssystem.Tournament[String]
+  private type Sheets = Map[String,Sheet]
+
   private object SheetOrdering extends Ordering[Sheet] {
     def compare(s1: Sheet, s2: Sheet): Int = s1 compare s2
   }
 
-  private type Sheets = Map[String,Sheet]
+  // FIXME I feel like this must exist in the stdlib somewhere...
+  // Maybe in scalaz? It's like String.split, but for lists...
+  private def split[T](l: List[T], p: T=>Boolean): List[List[T]] = {
+    def s(l: List[T], p: T=>Boolean): List[List[T]] = l match {
+      case Nil => List(Nil)
+      case x :: xs if p(x) => Nil :: s(xs, p)
+      case x :: xs => 
+        val r :: rs = s(xs, p)
+        (x :: r) :: rs
+    }
+    s(l,p).filterNot(_.isEmpty)
+  }
 
   override def scoreSheets(tour: Tournament): Map[String,Sheet] = {
     fromHistory(tour)._2
@@ -65,7 +65,7 @@ object SwissSystem extends PairingSystem with ScoringSystem {
     val withSheets = players map { p =>
       (p, ss.getOrElse(p.id, BlankSheet))
     }
-    val sorted = withSheets.sortBy(_._2)(SheetOrdering)
+    val sorted = withSheets.sortBy(_._2)(SheetOrdering).reverse
 
     // yeurk.
     val ranked = sorted.foldLeft[(RankedPlayers,Sheet)]((Nil,BlankSheet)) {
@@ -79,9 +79,13 @@ object SwissSystem extends PairingSystem with ScoringSystem {
 
   override def createPairings(tour: Tournament, users: List[String]): (Pairings,Events) = {
     val failed = (Nil,Nil)
-    if(users.size < 2) {
+    
+    // Notice how this doesn't use users: we get to pair players who haven't returned to the lobby yet.
+    val toPair = tour.activePlayers.map(_.id).toSet
+
+    if(toPair.size < 2) {
       failed
-    } else if(tour.pairings.exists(_.playing) || users.length != tour.nbActiveUsers) {
+    } else if(tour.pairings.exists(_.playing)) {
       // Can't pair if games are still going on.
       failed
     } else {
@@ -90,7 +94,7 @@ object SwissSystem extends PairingSystem with ScoringSystem {
       val (tt, _) = fromHistory(tour)
 
       tt flatMap { t =>
-        t.pairings(users.toSet) map { p =>
+        t.pairings(toPair) map { p =>
           val ps = p.pairs.map {
             case (p1,p2) => Pairing(p1,p2,now)
           }

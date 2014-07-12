@@ -108,6 +108,7 @@ sealed trait Enterable extends Tournament {
 }
 
 sealed trait StartedOrFinished extends Tournament {
+  type RankedPlayers = List[(Int,Player)]
 
   def startedAt: DateTime
   def withPlayers(s: Players): StartedOrFinished
