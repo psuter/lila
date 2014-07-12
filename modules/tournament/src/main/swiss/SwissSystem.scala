@@ -40,12 +40,41 @@ object SwissSystem extends PairingSystem with ScoringSystem {
     }
     lazy val totalRepr: String = (total/2) + f(2*(total%2))
     lazy val neustadtlRepr: String = (neustadtl/4) + f(neustadtl%4)
+
+    def compare(other: Sheet): Int = {
+      if(total > other.total) 1
+      else if(total < other.total) -1
+      else if(neustadtl > other.neustadtl) 1
+      else if(neustadtl < other.neustadtl) -1
+      else 0
+    }
+  }
+  private val BlankSheet = Sheet(Nil, 0, 0)
+  private object SheetOrdering extends Ordering[Sheet] {
+    def compare(s1: Sheet, s2: Sheet): Int = s1 compare s2
   }
 
   private type Sheets = Map[String,Sheet]
 
   override def scoreSheets(tour: Tournament): Map[String,Sheet] = {
     fromHistory(tour)._2
+  }
+
+  override def rank(tour: Tournament, players: Players): RankedPlayers = {
+    val ss = scoreSheets(tour)
+    val withSheets = players map { p =>
+      (p, ss.getOrElse(p.id, BlankSheet))
+    }
+    val sorted = withSheets.sortBy(_._2)(SheetOrdering)
+
+    // yeurk.
+    val ranked = sorted.foldLeft[(RankedPlayers,Sheet)]((Nil,BlankSheet)) {
+      case ((Nil,_),(p,s))                               => ((1, p) :: Nil, s)
+      case ((l@(r0::_),s0), (p,s)) if s0.compare(s) == 0 => ((r0._1, p) :: l, s0)
+      case ((l,_),(p, s))                                => ((l.size + 1, p) :: l, s)
+    }
+
+    ranked._1.reverse
   }
 
   override def createPairings(tour: Tournament, users: List[String]): (Pairings,Events) = {

@@ -28,6 +28,13 @@ object ScoringSystem extends AbstractScoringSystem {
     def onFire = firstTwoAreWins(scores)
   }
 
+  override def rank(tour: Tournament, players: Players): RankedPlayers = {
+    players.foldLeft(Nil: RankedPlayers) {
+        case (Nil, p)                  => (1, p) :: Nil
+        case (list@((r0, p0) :: _), p) => ((p0.score == p.score).fold(r0, list.size + 1), p) :: list
+    }.reverse
+  }
+
   override def scoreSheet(tour: Tournament, user: String) = Sheet {
     val filtered = tour userPairings user filter (_.finished) reverse
     val nexts = (filtered drop 1 map Some.apply) :+ None

@@ -41,6 +41,9 @@ trait ScoreSheet {
 
 trait ScoringSystem {
   type Sheet <: ScoreSheet
+  type RankedPlayers = List[(Int, Player)]
+
+  def rank(tournament: Tournament, players: Players): RankedPlayers
 
   // You must override either this one of the other !
   def scoreSheets(tournament: Tournament): Map[String,Sheet] = {
