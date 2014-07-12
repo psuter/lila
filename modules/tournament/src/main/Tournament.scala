@@ -113,11 +113,7 @@ sealed trait StartedOrFinished extends Tournament {
   def withPlayers(s: Players): StartedOrFinished
   def refreshPlayers: StartedOrFinished
 
-  type RankedPlayers = List[(Int, Player)]
-  def rankedPlayers: RankedPlayers = players.foldLeft(Nil: RankedPlayers) {
-    case (Nil, p)                  => (1, p) :: Nil
-    case (list@((r0, p0) :: _), p) => ((p0.score == p.score).fold(r0, list.size + 1), p) :: list
-  }.reverse
+  def rankedPlayers: RankedPlayers = system.scoringSystem.rank(this, players)
 
   def winner = players.headOption
   def winnerUserId = winner map (_.id)
