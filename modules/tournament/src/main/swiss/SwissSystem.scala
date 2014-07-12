@@ -10,6 +10,8 @@ import lila.game.{ Game, GameRepo }
 import scala.concurrent.Future
 import scala.util.Try
 
+import scalaz.NonEmptyList
+
 object SwissSystem extends PairingSystem with ScoringSystem {
   private val MinTimeBetweenRounds = Duration.standardSeconds(10L)
 
@@ -51,14 +53,15 @@ object SwissSystem extends PairingSystem with ScoringSystem {
   // FIXME I feel like this must exist in the stdlib somewhere...
   // Maybe in scalaz? It's like String.split, but for lists...
   private def split[T](l: List[T], p: T=>Boolean): List[List[T]] = {
-    def s(l: List[T], p: T=>Boolean): List[List[T]] = l match {
-      case Nil => List(Nil)
-      case x :: xs if p(x) => Nil :: s(xs, p)
-      case x :: xs => 
-        val r :: rs = s(xs, p)
-        (x :: r) :: rs
+    def s(l: List[T], p: T=>Boolean): NonEmptyList[List[T]] = l match {
+      case Nil => NonEmptyList(Nil, Nil)
+      case x :: xs if p(x) => NonEmptyList(Nil, s(xs, p).list: _*)
+      case x :: xs =>
+        val rec = s(xs, p)
+        val (r, rs) = (rec.head, rec.tail)
+        NonEmptyList(x :: r, rs: _*)
     }
-    s(l,p).filterNot(_.isEmpty)
+    s(l,p).list.filterNot(_.isEmpty)
   }
 
   override def scoreSheets(tour: Tournament): Map[String,Sheet] = {
@@ -102,11 +105,10 @@ object SwissSystem extends PairingSystem with ScoringSystem {
     } else {
       val now = DateTime.now
 
-      val pairingTimes: List[DateTime] = tour.pairings.flatMap(_.pairedAt)
-      val lastRoundGames: Future[List[Game]] = if(pairingTimes.isEmpty) {
-        Future.successful(Nil)
-      } else {
-        val mostRecentPairingTime: DateTime = pairingTimes.maxBy(_.getMillis)
+      val pairingTimes: Option[NonEmptyList[DateTime]] = tour.pairings.flatMap(_.pairedAt).toNel
+
+      val lastRoundGames: Future[List[Game]] = pairingTimes.fold(Future.successful(Nil:List[Game])) { pts =>
+        val mostRecentPairingTime: DateTime = pts.maxBy(_.getMillis) // safe !
         val lastRoundGameIds: List[String] = tour.pairings.collect {
           case p if p.pairedAt == Some(mostRecentPairingTime) => p.gameId
         }
